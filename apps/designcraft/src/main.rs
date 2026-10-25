@@ -35,7 +35,7 @@ struct App {
     /// Documents and quit requests from Finder, the Dock and Open With.
     #[cfg(target_os = "macos")]
     apple_events: fmv_macos_events::Inbox,
-    /// The window's `movable` flag as last set; see `mac_window`.
+    /// The window's `movable` flag as last set; see `craft_window::title_bar`.
     #[cfg(target_os = "macos")]
     movable: Option<bool>,
     /// Frames begun so far.
@@ -49,39 +49,45 @@ struct App {
 impl eframe::App for App {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.startup.enter();
-        if let Some(note) = self.startup.take_notice() {
-            self.app.status(note);
-        }
-        // The third call: two frames went through `ui`, so the first was presented and the driver
-        // survived it (a fault at the first present is what the fallback in `gpu` is for).
-        if self.frames == 2 {
-            self.startup.presented();
-        }
-        self.frames = self.frames.saturating_add(1);
-        if u64::from(self.frames) >= gpu::STARTUP_FRAMES
-            && let Some(device) = self.log_errors_after_startup.take()
-        {
-            gpu_limits::log_uncaptured_errors(&device);
-        }
-        #[cfg(target_os = "macos")]
-        {
-            if self.menu.is_none() && std::env::var_os("DESIGNCRAFT_NO_NATIVE_MENU").is_none() {
-                self.menu = Some(native_menu::NativeMenu::install(&mut self.app, ctx));
-            }
-            if let Some(m) = &mut self.menu {
-                m.poll(&mut self.app, ctx);
-            }
-            // Noted for a start again after a graphics failure, which reopens them (`gpu::restart`).
-            self.startup.opening(apple_events::poll(&self.apple_events, &mut self.app, ctx));
-        }
+        // Queue/deadline work only. A hidden `run_logic` tick also reports pass index zero, so
+        // startup counters and native-menu polling must not live here.
         self.app.logic(ctx);
         self.startup.leave();
     }
-    fn raw_input_hook(&mut self, _ctx: &egui::Context, raw: &mut egui::RawInput) {
-        self.app.raw_input_hook(raw);
+    fn raw_input_hook(&mut self, ctx: &egui::Context, raw: &mut egui::RawInput) {
+        self.app.raw_input_hook(ctx, raw);
     }
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.startup.enter();
+        // `App::ui` is the only signal that a real layout pass ran. A discarded multipass first
+        // pass reports index 0 once, so these once-per-frame counters/menu polls still run once.
+        if ui.ctx().current_pass_index() == 0 {
+            if let Some(note) = self.startup.take_notice() {
+                self.app.status(note);
+            }
+            // The third UI callback: two frames went through `ui`, so the first was presented and
+            // the driver survived it (a fault at the first present is what `gpu` falls back for).
+            if self.frames == 2 {
+                self.startup.presented();
+            }
+            self.frames = self.frames.saturating_add(1);
+            if u64::from(self.frames) >= gpu::STARTUP_FRAMES
+                && let Some(device) = self.log_errors_after_startup.take()
+            {
+                gpu_limits::log_uncaptured_errors(&device);
+            }
+            #[cfg(target_os = "macos")]
+            {
+                if self.menu.is_none() && std::env::var_os("DESIGNCRAFT_NO_NATIVE_MENU").is_none() {
+                    self.menu = Some(native_menu::NativeMenu::install(&mut self.app, ui.ctx()));
+                }
+                if let Some(m) = &mut self.menu {
+                    m.poll(&mut self.app, ui.ctx());
+                }
+                // Noted for a start again after a graphics failure, which reopens them (`gpu::restart`).
+                self.startup.opening(apple_events::poll(&self.apple_events, &mut self.app, ui.ctx()));
+            }
+        }
         self.app.ui(ui);
         self.startup.leave();
         #[cfg(target_os = "macos")]
@@ -141,15 +147,47 @@ fn prefs_path() -> Option<std::path::PathBuf> {
     profile::config_dir().map(|b| b.join("ui.json"))
 }
 
+/// Set when `ui.json` could not be read in full and no copy of it could be kept: the file is
+/// then left as it is rather than overwritten.
+static KEEP_UI_PREFS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Copy an unreadable (or partly unreadable) `ui.json` beside it, as `ui.unreadable.json` or the
+/// first free `ui.unreadable-N.json`, before the next save replaces it. A newer DesignCraft may
+/// have written it.
+fn keep_unreadable_prefs(path: &std::path::Path, bytes: &[u8]) {
+    use std::io::Write as _;
+    for n in 1..100u32 {
+        let name = if n == 1 { "ui.unreadable.json".to_string() } else { format!("ui.unreadable-{n}.json") };
+        match std::fs::OpenOptions::new().write(true).create_new(true).open(path.with_file_name(name)) {
+            Ok(mut file) => {
+                if file.write_all(bytes).is_ok() {
+                    return;
+                }
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(_) => break,
+        }
+    }
+    KEEP_UI_PREFS.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
 fn load_prefs(app: &mut DesignApp) {
     if no_prefs() {
         return;
     }
     if let Some(p) = prefs_path()
         && let Ok(bytes) = std::fs::read(&p)
-        && let Ok(ui) = designcraft_ui_egui::UiState::from_preferences_json(&bytes)
     {
-        app.ui = ui;
+        match designcraft_ui_egui::UiState::read_preferences(&bytes) {
+            Ok(read) => {
+                app.ui = read.ui;
+                if !read.intact {
+                    keep_unreadable_prefs(&p, &bytes);
+                }
+            }
+            Err(_) => keep_unreadable_prefs(&p, &bytes),
+        }
     }
     // Engine preferences (Preferences dialog, favourites…) live beside the UI state.
     if let Some(p) = prefs_path().map(|p| p.with_file_name("prefs.json"))
@@ -166,7 +204,9 @@ fn save_prefs(app: &DesignApp) {
     }
     if let Some(p) = prefs_path() {
         let _ = std::fs::create_dir_all(p.parent().unwrap_or(std::path::Path::new(".")));
-        if let Ok(bytes) = serde_json::to_vec_pretty(&app.ui) {
+        if !KEEP_UI_PREFS.load(std::sync::atomic::Ordering::Relaxed)
+            && let Ok(bytes) = serde_json::to_vec_pretty(&app.ui)
+        {
             let _ = std::fs::write(&p, bytes);
         }
         if let Ok(bytes) = serde_json::to_vec_pretty(&app.session.prefs) {
@@ -405,6 +445,9 @@ fn main() -> std::process::ExitCode {
             .with_fullsize_content_view(true)
             .with_titlebar_shown(false)
             .with_title_shown(false),
+        // DesignCraft's own FontDb supplies script-specific system fallbacks; egui's system-font
+        // provider would put its discovery ahead of that order and change line metrics.
+        system_font_fallback: false,
         ..Default::default()
     };
     options.viewport = options.viewport.with_app_id(APP_ID);
@@ -570,6 +613,22 @@ fn main() -> std::process::ExitCode {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn an_unreadable_ui_json_is_kept_beside_it() {
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let dir = std::env::temp_dir().join(format!("designcraft-ui-prefs-{}-{stamp}", std::process::id()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("ui.json");
+        super::keep_unreadable_prefs(&path, b"{\"docking\": {\"root\": {\"FutureLayout\": {}}}}");
+        super::keep_unreadable_prefs(&path, b"not json");
+        let first = std::fs::read(dir.join("ui.unreadable.json")).unwrap();
+        let second = std::fs::read(dir.join("ui.unreadable-2.json")).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(first.starts_with(b"{\"docking\""), "the first copy is not replaced");
+        assert_eq!(second, b"not json");
+        assert!(!super::KEEP_UI_PREFS.load(std::sync::atomic::Ordering::Relaxed), "ui.json can be saved once a copy is kept");
+    }
+
     #[test]
     fn relink_open_dialog_lists_graphics() {
         let filters = super::open_filters("relink");

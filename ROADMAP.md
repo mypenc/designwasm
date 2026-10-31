@@ -388,9 +388,13 @@ list) · [roadmap.md](docs/roadmap.md) (milestones, plan) · [parity-checklist.m
 
 Newest first.
 
+- **2026-10-30** · Import warnings about a story have a Show button: it closes the warnings (the status line keeps them) and selects the story's first frame, fitted in the window. `file.open` returns `warningItems`, the frame each IDML or InDesign warning is about (or null), matching the converter's INDD story numbers (`story 30892`, written to IDML as `u78ac`) and IDML `Self` names to the imported stories. No readiness percentage change.
+- **2026-10-30** · Parent pages: a running-header variable shows its name in angle brackets on the parent itself (it was blank), as InDesign shows it; on the document pages, and in text with no page, it shows its text as before. No readiness percentage change.
+- **2026-10-30** · Without facing pages, a page of a multi-page spread shows the parent page in its place, as in InDesign: the second page of a two-page spread shows the parent's second page. Every single-sided page showed the parent's first page, so an InDesign book set up without facing pages but laid out in two-page spreads repeated the left parent page's items (a black heading bar) on its right pages and lost the right parent page's. No readiness percentage change.
 - **2026-10-30** · File > Package opens a dialog, as the reference app's: a Summary of fonts, links and images and inks, pages for each, a Printing Instructions step, and a PDF made with the options of a preset (#1514, #1515).
 - **2026-10-30** · IDML import reads TOC separators and entry styles written with the `$ID/` prefix or as `Properties` children, and the TOC separator notation (`^t`, `^y`, `^m`, `^>`) is shared by the dialog and IDML, with a special-character menu on the separator field (#1249, #1255).
 - **2026-10-29** · Inserting text with many returns no longer takes time that grows with their square (part of #1588): each return copied its paragraph's format with its own insert, moving every format after it. Splitting 20,000 returns into paragraphs took 15.8 s; placing a text file of them now takes 0.2 s, and one of a million returns 5.5 s. No readiness percentage change.
+- **2026-10-28** · A placed image whose pixels would decode past 1 GiB of RGBA (256 Mpx) is refused from its header, before decoding (#1586). A 288 KB 23,000 px gray PNG used to hang the first draw for 9 s and take the app to 4.5 GB; it now draws as an empty frame, and PDF export skips it with a warning. A 300 ppi A0 scan still fits. No readiness percentage change.
 - **2026-10-28** · Discretionary hyphens (U+00AD) break in the single-line composer with automatic hyphenation on or off, matching the paragraph composer. Unbroken soft hyphens remain invisible and zero-width, and words containing them keep only their discretionary break points (#1955). No readiness percentage change.
 - **2026-10-28** · Autoflow no longer sizes the rest of a story by a frame that a Start Paragraph option (next column, frame, page, or odd or even page) ends early (#1209). With a title before a chapter that starts on the next odd page, it estimated a page per few characters, added up to 2000 pages (the autoflow limit) and removed them again: placing 2000 words took 36 s in the app, now 0.4 s, with the same pages. It looks past tracked-deleted paragraphs for the option, as composing does, and asks for every frame that start options and breaks force in one round: 200 one-line chapters on their own pages take 9 ms (58 ms before). A break and the start option it meets count once, and breaks that tracked changes delete or a hidden condition hides don't count. No readiness percentage change.
 - **2026-10-28** · IDML export writes the document's default `StoryPreference` in `Resources/Preferences.xml`, as InDesign does. Only each story carried one, and IDML readers that take the spread reading order from the document's (Okapi's IDML filter) failed on DesignCraft's files. No readiness percentage change.
@@ -521,6 +525,8 @@ Newest first.
 - **2026-10-18** · Table of Contents reserves the title field's width so Contents is readable next to its style picker; the grid previously squeezed it to a few characters. No readiness percentage change.
 - **2026-10-17** · Inline and anchored objects paint under their frame's text, on screen and in PDF, as InDesign draws them: a picture whose frame reaches into the next line (a negative Y offset) no longer hides the top of that line. No readiness percentage change.
 - **2026-10-17** · Running headers: *first/last on page* read a page in text order (story order, then column by column), not by height — a multi-column page's right header showed the lowest entry of column 1 instead of the page's last entry. No readiness percentage change.
+- **2026-10-17** · Cross-references keep text typed over their generated text (IDML import and export), with the page number still live, as InDesign shows them until updated; a cross-reference whose destination is gone shows its saved text and page instead of "??"; and a cross-reference's text breaks at its spaces instead of inside words. No readiness percentage change.
+- **2026-10-17** · Parent pages: while parents are edited, the document pages' hidden characters, spelling squiggles and other overlays no longer pile onto the right parent page. No readiness percentage change.
 - **2026-10-16** · A Direct Selection click on an image whose frame is already selected selects the image, so Delete removes only the image and leaves the empty frame, as in InDesign. No readiness percentage change.
 - **2026-10-16** · Type › Reload Fonts (`font.reload`): fonts installed, edited or removed while DesignCraft runs are read again without a restart, and the open documents recompose with them (#328, #547). An edited font file is noticed by its length and modification time; bundled, added and document fonts stay as they are. InDesign does this by itself, so noticing changes automatically is still open (gap 6). No readiness percentage change.
 - **2026-10-16** · Parents can be deleted from their Pages-panel context menu or `layout.parents.delete {id}`. Applied-page and based-on references are cleared, local override copies survive, and Undo restores the parent. Addresses the deletion portion of #956; no readiness percentage change.
@@ -768,14 +774,14 @@ Newest first.
 - **2026-10-10 (UI.4–UI.5):** Panel tabs can move into other groups, split the dock, float, resize and return to their saved locations through shared docking transactions. Layouts persist in custom workspaces; UI and control commands share the same validated action path. Shared pane geometry and widget-state theme application retain all five palettes and local fonts. Split panes send keyboard input only to the focused canvas and scope contextual toolbar IDs per pane. No readiness percentage change.
 - **2026-10-10** · Version 0.6.0; releases add a Linux riscv64 tar.gz (cross-compiled, CLI
   smoke-tested under QEMU).
-- **2026-10-10** · Readiness per audience: full ~47% (method aligned with the standard, was
+- **2026-10-10** · Readiness per audience: full ~47% (method corrected, was
   42%), mainstream practitioner ~42%, essentials user ~54%, each with hours to ~95%.
-- **2026-10-10** · Stage re-normalized to **pre-alpha** under craftrules' core-workflow gate: text
+- **2026-10-10** · Stage re-normalized to **pre-alpha** under the core-workflow gate: text
   can't be threaded by hand (no out-port click, no thread command).
 - **2026-10-10** · Full re-measure against InDesign 2026 21.6 (menu dump, bundle formats and
   localizations, 124 issues): breadth ~80%, ready ~42% (down from the ~83% "including depth" of
-  2026-10-04, on user evidence and the INDD gap); progress docs restructured to the craftrules
-  standard (`docs/parity.md` → `docs/parity-checklist.md`; new target-app-parity, gaps, roadmap,
+  2026-10-04, on user evidence and the INDD gap); progress docs restructured
+  (`docs/parity.md` → `docs/parity-checklist.md`; new target-app-parity, gaps, roadmap,
   architecture, typography, file-format, UI, hardware and localization docs). Landed today:
   split columns (#295), PDF export options dialog (#196), column rules (#274), Paragraph Rules
   dialog (#263), Character Style Options (#144), PDF/X-4 RGB handling (#223), Spanish
@@ -804,10 +810,10 @@ Newest first.
 |---|---|---|
 | 2026-10-12 | minor | Manual text threading landed; alpha distance 15–25 h → 5–7 h (Primary Text Frame page fixes, #165) |
 | 2026-10-11 | minor | Localized Japanese print, import and table controls; readiness estimates unchanged |
-| 2026-10-10 | minor | Full number 42% → 47% (method aligned with the standard: plain weighted sum, no new evidence); readiness table with hours per audience |
+| 2026-10-10 | minor | Full number 42% → 47% (plain weighted sum, no new evidence); readiness table with hours per audience |
 | 2026-10-10 | minor | Headline adds mainstream practitioner (~42%) and essentials user (~54%); method in docs/target-app-parity.md |
 | 2026-10-10 | minor | Stage alpha → pre-alpha under the new core-workflow gate: manual text threading is missing; alpha gate table added to docs/roadmap.md |
-| 2026-10-10 | major | Restructured to the progress-docs standard; full re-measure; the "Working today" inventory moved to docs/target-app-parity.md, milestones to docs/roadmap.md, the CLI/MCP section left to docs/agents.md (which already covered it) |
+| 2026-10-10 | major | Progress docs restructured; full re-measure; the "Working today" inventory moved to docs/target-app-parity.md, milestones to docs/roadmap.md, the CLI/MCP section left to docs/agents.md (which already covered it) |
 | 2026-10-04 | major | Parity estimate: breadth 99%, depth ~83%, ~170 h |
 | 2026-10-01 | major | First roadmap: status, milestones |
 

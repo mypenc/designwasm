@@ -2583,6 +2583,22 @@ fn cjk_menu_items_follow_show_cjk_features() {
     assert_eq!(app.ui.dialog.as_ref().map(|d| d.id.as_str()), Some("ruby"), "hidden, not removed");
 }
 
+/// The CJK commands sit in a group of their own, after a separator, and hiding them leaves no
+/// separator at the end of the menu.
+#[test]
+fn cjk_menu_items_have_their_own_group() {
+    let mut app = DesignApp::new(designcraft_engine::Session::new(), crate::Services::default());
+    let ty = menu_tree().into_iter().find(|(m, _)| *m == "Type").unwrap().1;
+    let first = ty.iter().position(|i| matches!(i, Item::Cmd { id, .. } if CJK_ONLY.contains(&id.as_str()))).unwrap();
+    assert!(matches!(ty[first - 1], Item::Sep), "separator before the CJK group");
+    assert!(matches!(ty[first - 2], Item::Sub(..)), "the group comes after Story Direction");
+    app.ui.language = String::new();
+    app.run("prefs.set", json!({"cjkFeatures": false})).unwrap();
+    assert!(!has_shown_item(&app, &ty[first..]), "nothing left after the separator");
+    app.run("prefs.set", json!({"cjkFeatures": true})).unwrap();
+    assert!(has_shown_item(&app, &ty[first..]));
+}
+
 /// Preferences › Type › Show CJK Features: left as it is, it keeps following the interface
 /// language; changed, it is kept in prefs.json.
 #[test]
@@ -3121,4 +3137,18 @@ fn forwarded_keys_run_shortcuts() {
     app.session.execute("selection.set", &json!({"ids": [frame["id"]]})).unwrap();
     forwarded_shortcuts(&mut app, &ctx, press(Key::Delete), Modifiers::NONE);
     assert!(app.session.active().unwrap().doc.item(designcraft_doc::ItemId(frame["id"].as_u64().unwrap())).is_none(), "Delete clears the selection");
+}
+
+#[test]
+fn file_menu_ends_with_quit_but_the_macos_menu_bar_leaves_it_to_the_app_menu() {
+    let file = |tree: Vec<(&'static str, Vec<Item>)>| {
+        let mut out = Vec::new();
+        walk(&tree.into_iter().find(|(t, _)| *t == "File").map(|(_, e)| e).unwrap_or_default(), &mut out);
+        out.into_iter().map(|(_, id, _)| id).collect::<Vec<_>>()
+    };
+    assert_eq!(file(menu_tree()).last().map(String::as_str), Some("app.quit"), "File ends with the quit item");
+    assert!(!file(native_menu_tree()).iter().any(|id| id == "app.quit"), "macOS has Quit only in the app menu");
+    let native = native_menu_tree();
+    let file_items = native.iter().find(|(t, _)| *t == "File").map(|(_, e)| e);
+    assert!(!matches!(file_items.and_then(|e| e.last()), Some(Item::Sep)), "no separator left at the end of File");
 }

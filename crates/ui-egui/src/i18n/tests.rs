@@ -14,6 +14,7 @@ const LANGUAGE_TABLES: &[(&str, &[(&str, &str)])] = &[
     ("pl", pl::TABLE),
     ("pt-br", pt_br::TABLE),
     ("ru", ru::TABLE),
+    ("sv", sv::TABLE),
     ("uk", uk::TABLE),
 ];
 
@@ -25,6 +26,7 @@ const CONTEXT_TABLES: &[(&str, &[(&str, &str, &str)])] = &[
     ("ja", ja::CONTEXT),
     ("pl", pl::CONTEXT),
     ("ru", ru::CONTEXT),
+    ("sv", sv::CONTEXT),
     ("uk", uk::CONTEXT),
 ];
 

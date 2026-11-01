@@ -354,7 +354,7 @@ A string without a translation shows in English and fails no check; `cargo xtask
 | Vietnamese | vi | none | 0% |
 
 Also shipped: Czech (99%), Italian (85%), Ukrainian (83%), Polish (99%).
-Also shipped: Italian (85%), Ukrainian (83%), Georgian (100%).
+Also shipped: Italian (85%), Ukrainian (83%), Georgian (100%), Swedish (99%).
 
 ## Upcoming
 
@@ -388,6 +388,7 @@ list) · [roadmap.md](docs/roadmap.md) (milestones, plan) · [parity-checklist.m
 
 Newest first.
 
+- **2026-10-31** · `font.list` reports the embedding licence of the face that sets each font's text: its OS/2 `fsType` and what the bits mean (`restrictedLicence`, `bitmapOnly`, `noSubsetting`, `editable`, `previewPrint`; null when the font is missing or has no OS/2 table). A script or host that makes PDFs can check every face, bundled and installed ones included, without reading font files. Export behaviour is unchanged. No readiness percentage change.
 - **2026-10-31** · A `.designcraft` file opened from bytes (`file.openBytes` with its file name, as a browser or host passes it) is titled without the extension, as an IDML file opened that way is. Saving it in the browser downloaded `Brochure.designcraft.designcraft`, and the File Name variable showed the doubled name. Browser Open and Drop pass the full file name, so only the engine removes the extension and a repeated suffix is kept in the title. No readiness percentage change.
 - **2026-10-30** · Import warnings about a story have a Show button: it closes the warnings (the status line keeps them) and selects the story's first frame, fitted in the window. `file.open` returns `warningItems`, the frame each IDML or InDesign warning is about (or null), matching the converter's INDD story numbers (`story 30892`, written to IDML as `u78ac`) and IDML `Self` names to the imported stories. No readiness percentage change.
 - **2026-10-30** · Parent pages: a running-header variable shows its name in angle brackets on the parent itself (it was blank), as InDesign shows it; on the document pages, and in text with no page, it shows its text as before. No readiness percentage change.
@@ -539,6 +540,10 @@ Newest first.
 
 - **2026-10-16** · Layout: autoflow, inserted pages and new parents follow dragged column guides (#1096). Autoflow sets one frame per dragged column and counts the pages it adds from them; Insert Pages and New Parent keep the custom positions with the column count and gutter; `document.inspect` reports each page's gutter, column rects and whether its columns are custom. No readiness percentage change.
 - **2026-10-16** · Lock Guides and Lock Column Guides are commands in View ▸ Grids & Guides (`view.lockGuides`, ⌥⌘;, and `view.lockColumnGuides`), so the control channel and MCP reach them. Lock Column Guides is saved with the document, on in new ones, and read from and written to IDML's `ColumnGuideLocked`, which export always wrote as locked (#1096). No readiness percentage change.
+- **2026-10-15** · Swedish interface (`sv`, Preferences ▸ General ▸ Interface Language ▸ Svenska): menus, panels,
+  dialogs and messages, 2,857 of the 2,891 interface strings (99%) in the missing-translations report; the other 34
+  show in English. AI-drafted with Claude Code from the English source; spot-checked by a native speaker, not every
+  string reviewed. No readiness percentage change.
 - **2026-10-16** · Threading: the loaded text cursor threads into a text frame inside a group (it hit the group and showed it could not thread); a plain click still selects the group (#1075). Gap 27 closed. No readiness percentage change.
 - **2026-10-16** · Greek text hyphenates. The patterns were never compiled in, so Greek set unhyphenated however narrow the column; `"Greek"`, `"Greek: Greece"`, `el` and `el-GR` all resolve now and ανθρωπος breaks αν-θρω-πος. They are the monotonic patterns (hyph-el-monoton, Dimitrios Filippou, under MIT), which is what polytonic text hyphenates by too. Five of InDesign's ~40 hyphenation languages. No readiness percentage change.
 - **2026-10-16** · A swatch applied to a placed greyscale or bitmap image colours it, as in InDesign: IDML's `<Image FillColor>` is read and written, greyscale pixels become a tint of the swatch on opaque white and a bitmap's white lets the frame show through, on screen and in PDF (spot swatches print on their plate). Colour images keep their colours. Applying the swatch from the Swatches panel comes next. No readiness percentage change.
